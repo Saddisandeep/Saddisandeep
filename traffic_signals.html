@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic Signal System</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: space-between; align-items: center; background-color: #f2f2f2; padding: 20px; }
+        .sidebar { width: 30%; background: #333; color: white; padding: 20px; border-radius: 10px; }
+        .traffic-container { width: 60%; display: flex; justify-content: space-around; }
+        .signal-box { text-align: center; }
+        .signal { position: relative; width: 80px; height: 180px; border: 3px solid black; display: flex; flex-direction: column; align-items: center; background-color: grey; border-radius: 15px; padding: 5px; }
+        .light { width: 50px; height: 50px; border-radius: 50%; background-color: #666; margin: 5px auto; }
+        .timer { font-size: 18px; margin-top: 10px; }
+        .cycle-info { background: #444; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+
+        .green-light { background-color: green; }
+        .red-light { background-color: red; }
+        .orange-light { background-color: orange; }
+        .grey-light { background-color: #666; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Traffic Cycle Info</h2>
+        <div id="cycle-data"></div>
+        <h3>Remaining Time: <span id="remaining-time">30</span> sec</h3>
+    </div>
+
+    <div class="traffic-container">
+        <div class="signal-box">
+            <div id="north" class="signal">
+                <div class="light red-light"></div>
+                <div class="light grey-light"></div>
+                <div class="light grey-light"></div>
+            </div>
+            <div class="timer" id="north-timer">0</div>
+            <p>North</p>
+        </div>
+
+        <div class="signal-box">
+            <div id="east" class="signal">
+                <div class="light red-light"></div>
+                <div class="light grey-light"></div>
+                <div class="light grey-light"></div>
+            </div>
+            <div class="timer" id="east-timer">0</div>
+            <p>East</p>
+        </div>
+
+        <div class="signal-box">
+            <div id="south" class="signal">
+                <div class="light red-light"></div>
+                <div class="light grey-light"></div>
+                <div class="light grey-light"></div>
+            </div>
+            <div class="timer" id="south-timer">0</div>
+            <p>South</p>
+        </div>
+
+        <div class="signal-box">
+            <div id="west" class="signal">
+                <div class="light red-light"></div>
+                <div class="light grey-light"></div>
+                <div class="light grey-light"></div>
+            </div>
+            <div class="timer" id="west-timer">0</div>
+            <p>West</p>
+        </div>
+    </div>
+
+    <script>
+        let signalOrder = ["north", "east", "south", "west"];
+        let index = 0;
+        let signalTimings = { North: 10, East: 10, South: 10, West: 10 };
+        let trafficData = { North: 0, East: 0, South: 0, West: 0 };
+        let remainingTime = 0;
+        const ORANGE_TIME = 1;
+
+        async function fetchTrafficData() {
+            try {
+                const response = await fetch('/traffic_data'); 
+                const data = await response.json();
+                signalTimings = data.signal_timings || signalTimings;
+                trafficData = data.traffic_density || trafficData;
+                remainingTime = data.remaining_time || remainingTime;
+                updateCycleInfo();
+            } catch (error) {
+                console.error("Error fetching traffic data:", error);
+            }
+        }
+
+        function updateCycleInfo() {
+            let cycleDataDiv = document.getElementById("cycle-data");
+            cycleDataDiv.innerHTML = "";
+            signalOrder.forEach(direction => {
+                let capitalized = direction.charAt(0).toUpperCase() + direction.slice(1);
+                let infoBox = document.createElement("div");
+                infoBox.className = "cycle-info";
+                infoBox.innerHTML = `<b>${capitalized}:</b> ${trafficData[capitalized] || 0} vehicles, ${signalTimings[capitalized] || 10} sec`;
+                cycleDataDiv.appendChild(infoBox);
+            });
+            document.getElementById("remaining-time").textContent = remainingTime;
+        }
+
+        function updateSignal() {
+            let currentSignal = signalOrder[index];
+
+            document.querySelectorAll(".signal .light").forEach(el => el.classList.add("red-light"));
+            let currentElement = document.querySelector(`#${currentSignal}`);
+            currentElement.querySelectorAll(".light").forEach(el => el.classList.remove("red-light"));
+            
+            let timeLeft = signalTimings[currentSignal.charAt(0).toUpperCase() + currentSignal.slice(1)];
+
+            function countdown() {
+                if (timeLeft >= 0) {
+                    document.getElementById(`${currentSignal}-timer`).textContent = timeLeft;
+                    timeLeft--;
+                    setTimeout(countdown, 1000);
+                } else {
+                    index = (index + 1) % signalOrder.length;
+                    fetchTrafficData().then(updateSignal);
+                }
+            }
+
+            countdown();
+        }
+
+        fetchTrafficData().then(updateSignal);
+    </script>
+
+</body>
+</html>
